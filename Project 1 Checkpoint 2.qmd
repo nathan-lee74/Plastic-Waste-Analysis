@@ -37,13 +37,18 @@ Csvs from 2019 and 2020 were stacked to make one overall plastic.csv dataset. Th
 ![RQ1](sketch1.png) ![](sketch2.png)
 
 ```{r}
+#Returns the percent of plastic produced for a given country and parent company.
 percent_plastic_type <- function(country_name, parent_company_name, plastic_type){
-  plastics |>
-  filter(country == country_name, parent_company == parent_company_name) |>
-  mutate(percent_plastic_type =  if_else(!isna(.data[[plastic_type]]),  / grand_total) |>
-  select(country, year, parent_company, all_of(plastic_type),        percent_plastic_type) |>
-  head(2)
-}
+  result <- plastics |>
+    filter(country == country_name, parent_company == parent_company_name) |>
+    mutate(percent_plastic_type = .data[[plastic_type]] / grand_total) |>
+    select(country, year, parent_company, all_of(plastic_type), percent_plastic_type) |>
+    filter(!is.na(percent_plastic_type))
   
-percent_plastic_type("Bangladesh", "Nestlé", "empty")
+  if (nrow(result) == 0) {
+    stop("Grand total is zero or no data found, cannot calculate percentage.")
+  }
+  
+  head(result, 2)
+}
 ```
