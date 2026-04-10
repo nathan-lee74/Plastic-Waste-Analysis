@@ -31,3 +31,20 @@ Csvs from 2019 and 2020 were stacked to make one overall plastic.csv dataset. Th
 ![RQ1](sketch1.png)
 ![](sketch2.png)
 
+```{r}
+library(tidyverse)
+dpe_prop <- function(country_name) {
+  plastics %>%
+    filter(country == country_name) %>%
+    mutate(ldpe_prop = ldpe / (hdpe + ldpe)) %>%
+    summarise(avg_ldpe_prop = mean(ldpe_prop, na.rm = TRUE)) %>%
+    pull(avg_ldpe_prop)
+}
+
+# Apply across all countries
+plastics %>%
+  distinct(country) %>%
+  mutate(ldpe_proportion = map_dbl(country, dpe_prop)) %>%
+  slice_max(ldpe_proportion, n = 10)
+
+```
