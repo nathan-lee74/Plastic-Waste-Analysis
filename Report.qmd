@@ -1,4 +1,4 @@
-                        ---
+---
 title: "Project 1 Report"
 author: "Nathan Lee, Noah Nayve, Ryan Ekdahl, Taiga Sobajima"
 format: html
@@ -12,6 +12,7 @@ library(tidyjson)
 library(jsonlite)
 library(tidyverse)
 library(plotly)
+library(RColorBrewer)
 ```
 
 ```{r}
@@ -152,7 +153,7 @@ plastics |>
 ## Using API to retrieve country-level data
 ```{r}
 # Function used to get data from the API
-my_api_key <- Sys.getenv("API_NINJAS_KEY")
+my_api_key <- "v7n57dmeHmjsxe70XJ9FySHjcV5dlDZdK6wMw9ct"
 
 base_url <- "https://api.api-ninjas.com/v1/country?name="
 
@@ -178,7 +179,7 @@ all_countries_df <- map(all_countries, get_country_url)
 all_countries_data <- map(
   all_countries_df,
   ~fromJSON(rawToChar(.x$content))
-  ) |>
+) |>
   bind_rows() |>
   relocate(name) 
 ```
@@ -260,7 +261,7 @@ bubble_plot <- population_plastics |>
     title = "Internet User % by Total Plastic Collected Per Country",
     subtitle = "(bubble size = # volunteers)"
     ) +
-  theme_classic() +
+  theme_minimal(base_size = 13) +
   theme(
     legend.position = "none",
     plot.title = element_text(size = 14)
@@ -391,3 +392,51 @@ population_plastics2 |>
   theme_minimal()
 
 ```
+
+
+### Professionally Formatted Visualization 1
+```{r}
+#| fig-alt: "Bubble plot showing internet user percentage by total plastic collected per country, additionally with country statistics when hovering over each circle."
+
+# Visualization of internet user % by total plastic collected for each country
+bubble_plot <- population_plastics |>
+  filter(parent_company == "Grand Total",
+         country != "Empty",
+         !is.na(region)) |>
+  ggplot(
+    aes(x = internet_users, 
+        y = grand_total, 
+        size = volunteers, 
+        color = region,
+        text = paste("Country:", country,
+                     "<br>Internet Users:", internet_users, "%",
+                     "<br>Plastic Collected:", scales::comma(grand_total),
+                     "<br>Volunteers:", scales::comma(volunteers),
+                     "<br>Region:", region))
+    ) +
+  geom_point(alpha = 0.5) +
+  scale_x_continuous(labels = scales::label_comma()) +
+  scale_y_log10(labels = scales::label_comma()) +
+  scale_size_continuous(
+    labels = scales::label_comma(),
+    range = c(5, 25)
+    ) +
+  scale_color_manual(
+  values = unname(Polychrome::palette36.colors(18))
+  )  +
+  labs(
+    x = "Internet Users (Percent of Population)",
+    y = "",
+    size = "Volunteers",
+    color = "Region",
+    title = "Internet Users vs. Total Plastic Collected (Log Scale) Per Country<br><sup>(Bubble Size = # of Volunteers)</sup>"
+    ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(size = 14)
+    )
+
+ggplotly(bubble_plot, tooltip = "text")
+```
+
