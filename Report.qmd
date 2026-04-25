@@ -131,26 +131,66 @@ percent_plastic_type <- function(country_name,
 percent_plastic_type("Argentina", "Nestle", "pet")
 ```
 
-## Top 10 Countries by LDPE Proportion of Polyethylene Plastic Waste
+## Top 10 Countries by Plastic Waste Collected per Cleanup Event
 ```{r}
 #| label: using modified columns with custom function and iteration
-# Function creating LDPE proportion of polyethylene plastic waste
-dpe_prop <- function(country_name) {
-  plastics |>
-    filter(country == country_name) |>
-    mutate(ldpe_prop = ldpe / (hdpe + ldpe)) |>
-    summarise(avg_ldpe_prop = mean(ldpe_prop, na.rm = TRUE)) |>
-    pull(avg_ldpe_prop)
+
+# Function 1: waste collected per cleanup event for a given country
+waste_per_event <- function(country_name) {
+  result <- plastics |>
+    filter(country == country_name,
+           parent_company == "Grand Total",
+           num_events > 0) |>
+    mutate(waste_per_event = grand_total / num_events) |>
+    select(country, year, grand_total, num_events, waste_per_event)
+
+  if (nrow(result) == 0) {
+    return(tibble())
+  }
+
+  result
 }
 
-# Apply across all countries
+# Top 10 countries by average waste per cleanup event
 plastics |>
   distinct(country) |>
-  mutate(ldpe_proportion = map_dbl(country, dpe_prop)) |>
-  slice_max(ldpe_proportion, n = 10)
+  pull(country) |>
+  map_dfr(.f = waste_per_event) |>
+  group_by(country) |>
+  summarise(avg_waste_per_event = mean(waste_per_event, na.rm = TRUE)) |>
+  slice_max(avg_waste_per_event, n = 10) |>
+  arrange(desc(avg_waste_per_event))
+
+# Function 2: share of a given plastic type in grand total, across all countries
+plastic_type_share <- function(plastic_type_name) {
+  result <- plastics |>
+    filter(parent_company == "Grand Total",
+           grand_total > 0) |>
+    mutate(
+      plastic_type = plastic_type_name,
+      share = .data[[plastic_type_name]] / grand_total
+    ) |>
+    select(country, year, plastic_type, share)
+
+  if (nrow(result) == 0) {
+    return(tibble())
+  }
+
+  result
+}
+
+# Iterate over all plastic types and summarise average global share of each
+plastic_types <- c("hdpe", "ldpe", "o", "pet", "pp", "ps", "pvc")
+
+plastic_types |>
+  map_dfr(.f = plastic_type_share) |>
+  group_by(plastic_type) |>
+  summarise(avg_share = mean(share, na.rm = TRUE)) |>
+  arrange(desc(avg_share))
 ```
 
 ## Using API to retrieve country-level data
+
 ```{r}
 # Function used to get data from the API
 my_api_key <- "v7n57dmeHmjsxe70XJ9FySHjcV5dlDZdK6wMw9ct"
@@ -278,6 +318,23 @@ base_url2 <- "https://restcountries.com/v3.1/name/"
 
 get_country_url2 <- function(country){
   GET(
+    url = str_c(base_url2, URLencode(country)),
+    config(ssl_verifypeer = FALSE)
+  )
+}
+
+```
+
+```{r}
+# Load cached country data (originally fetched from restcountries.com API)
+all_countries_data2 <- read_csv("data/all_countries_data2.csv")
+```
+
+This new API dataset contains more robust country demographic, cultural, and globablly recognized data. Including country name (in native writing), region and subregion as identified by the UN, population size, geographic size, geographic location, etc. From this dataset we pulled population, region, subregion, and area. 
+
+
+```{r}
+#Merged plastics and demographic API dataset
     url = str_c(base_url2, URLencode(country))
   )
 }
@@ -380,8 +437,7 @@ population_plastics2 |>
     aes(label = country),
     size = 2.5,
     check_overlap = TRUE,
-    vjust = -0.5
-    ) +
+    vjust = -0.5) +
   scale_x_log10(labels = scales::label_comma()) +
   scale_y_log10(labels = scales::label_comma()) +
   labs(
