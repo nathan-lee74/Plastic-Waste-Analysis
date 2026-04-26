@@ -18,6 +18,7 @@ library(ggridges)
 library(plotly)
 library(gt)
 library(broom)
+library(Polychrome)
 ```
 
 ```{r}
@@ -256,8 +257,6 @@ population_plastics |>
   theme_classic()
 ```
 
-###Using API to get 
-
 ```{r}
 # Function used to get data from the API
 base_url2 <- "https://restcountries.com/v3.1/name/"
@@ -265,10 +264,9 @@ base_url2 <- "https://restcountries.com/v3.1/name/"
 get_country_url2 <- function(country){
   GET(
     url = str_c(base_url2, URLencode(country)),
-    config(ssl_verifypeer = FALSE)
+    httr::config(ssl_verifypeer = FALSE)
   )
 }
-
 ```
 
 ```{r}
@@ -305,16 +303,15 @@ all_countries_data2 <- map(all_countries_df2, get_country_info2) |>
 
 This new API dataset contains more robust country demographic, cultural, and globablly recognized data. Including country name (in native writing), region and subregion as identified by the UN, population size, geographic size, geographic location, etc. From this dataset we pulled population, region, subregion, and area. 
 
-
 ```{r}
-#Merged plastics and demographic API dataset
+# Merged plastics and demographic API dataset
 population_plastics2 <- plastics |>
   mutate(country = str_to_title(country)) |>
   left_join(all_countries_data2, by = c("country" = "name"))
 ```
 
 ```{r}
-#Visualization of plastic collected by UN demographic subregion
+# Visualization of plastic collected by UN demographic subregion
 population_plastics2 |>
   filter(!is.na(subregion), parent_company == "Grand Total") |>
   group_by(subregion) |>
@@ -336,7 +333,7 @@ population_plastics2 |>
 ```
 
 ```{r}
-#Total plastic by country population
+# Total plastic by country population
 population_plastics2 |>
   filter(parent_company == "Grand Total") |>
   ggplot(
@@ -360,7 +357,6 @@ population_plastics2 |>
 
 ```
 
-### Professionally Formatted Visualization 1
 ```{r}
 #| fig-alt: "Bubble plot showing internet user percentage by total plastic collected per country, additionally with country statistics when hovering over each circle."
 
@@ -410,11 +406,11 @@ ggplotly(bubble_plot, tooltip = "text")
 ```{r}
 # Distribution of Total Plastic Collected by Urban Population Growth Rate
 
-library(ggridges)
-
-
 population_plastics |>
-  summarize(min = min(urban_population_growth, na.rm = TRUE), max = max(urban_population_growth, na.rm = TRUE))
+  summarize(
+    min = min(urban_population_growth, na.rm = TRUE),
+    max = max(urban_population_growth, na.rm = TRUE)
+    )
 
 pop <- population_plastics |>
   mutate(urban_growth = factor(
@@ -432,7 +428,10 @@ pop <- population_plastics |>
 
 pop |>
   filter(parent_company == "Grand Total", !is.na(region), threatened_species > 0) |>
-  ggplot(aes(x = grand_total, y = factor(urban_growth), fill = factor(urban_growth))) +
+  ggplot(
+    aes(x = grand_total, y = factor(urban_growth), 
+        fill = factor(urban_growth))
+    ) +
   geom_density_ridges(scale = 0.8, alpha = 0.7) +
   scale_x_log10(labels = scales::label_comma()) +
   labs(title = "Distribution of Plastic Waste Collected by Urban Population Growth",
